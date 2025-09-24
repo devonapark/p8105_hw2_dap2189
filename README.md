@@ -1,1 +1,3 @@
-# p8105_hw2_dap2189
+# HW 2 
+This repo is for HW two
+Due: 01 OCT 2025
