@@ -1,0 +1,19 @@
+---
+title: "HW2 - P8105"
+output: github_document
+date: "2025-09-24"
+---
+# HW 2 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+### Subtitle 
+#### Tester
+##### Tester 3
+###### Tester 4
+
+Random Text
+
