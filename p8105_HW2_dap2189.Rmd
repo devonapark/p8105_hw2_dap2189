@@ -3,17 +3,179 @@ title: "HW2 - P8105"
 output: github_document
 date: "2025-09-24"
 ---
-# HW 2 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
+# HW 2
 ## R Markdown
 ### Subtitle 
 #### Tester
 ##### Tester 3
 ###### Tester 4
-
 Random Text
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(haven)
+```
+
+## Problem 1
+Data to be used: `pols-month.csv`, `unemployment.csv`, and `snp.csv`. 
+Goal: Merge these into a single data frame using year and month as keys across datasets.
+
+### Step 0: Import and View Data:
+Import each of the datasets and view what we're working with. 
+```{r}
+pols_month_df =
+  read_csv("fivethirtyeight_datasets/pols-month.csv") |> 
+  janitor::clean_names() 
+
+#When imported everything is already dbl meaning it is a double numeric variable (aka we don't need to include a line like --> na = c("NA", ".", "") that converts missing values)
+
+snp_df =
+  read_csv("fivethirtyeight_datasets/snp.csv") |> 
+  janitor::clean_names() 
+
+
+unemployment_df =
+  read_csv("fivethirtyeight_datasets/unemployment.csv") |> 
+  janitor::clean_names() 
+```
+
+
+### Step 1: Clean `pols-month.csv`
+Use separate() to break up the variable mon into integer variables year, month, and day; 
+Replace month number with month name; 
+Create a president variable taking values gop and dem,
+Remove prez_dem and prez_gop; and remove the day variable.
+
+```{r}
+pols_month_df =  
+ separate(pols_month_df, mon, c("year","month","day"),"-", convert = TRUE) |> 
+  mutate(
+    month = month.name[month],
+    president = case_when(
+      prez_dem == 1 ~ "dem",
+      prez_gop == 1 ~ "gop"
+    )) |> 
+  select(-prez_dem, -prez_gop, -day)
+
+ #Found this shortcut online. Instead of mutate(month = month.name[month]), you could also use mutate(month = case_when(month == 1 ~ "January",....
+```
+
+### Step 2: Clean `snp.csv`
+Use a similar process to the above. 
+For consistency across datasets, arrange according to year and month, 
+Organize so that year and month are the leading columns.
+
+```{r}
+snp_df =  
+ separate(snp_df, date, c("month","day","year"),"/", convert = TRUE) |> 
+  mutate(
+    month = month.name[month],
+    year = if_else(year <= 15, year + 2000, year + 1900)) |> 
+  select(-day) |> 
+  relocate(year)
+
+```
+
+
+### Step 2: Tidy `unemployment.csv`
+Tidy the unemployment data so that it can be merged with the previous datasets. 
+Switch it from “wide” to “long” format --> ensure key variables have the same name and that key variables take the same values.
+
+
+```{r}
+unemployment_df <-
+unemployment_df |>   
+  pivot_longer( 
+    cols = jan:dec,
+    names_to = "month",
+    values_to = "unemployment_rate") |> 
+  mutate(month = tolower(month),
+        month = case_when( 
+                            month == "jan" ~ "January",
+                            month == "feb" ~ "February",
+                            month == "mar" ~ "March",
+                            month == "apr" ~ "April",
+                            month == "may" ~ "May",
+                            month == "jun" ~ "June",
+                            month == "jul" ~ "July",
+                            month == "aug" ~ "August",
+                            month == "sep" ~ "September",
+                            month == "oct" ~ "October",
+                            month == "nov" ~ "November",
+                            month == "dec" ~ "December"))
+
+ 
+
+```
+
+
+
+### Step 4: Join Data Sets
+Merge `snp.csv` INTO `pols-month.csv`,
+Merge `unemployment.csv` into above result.
+
+```{r}
+
+snps_pols_df = 
+  left_join(pols_month_df, snp_df, by = c("year","month"))
+
+
+unemployment_snps_pols_df = 
+  left_join(snps_pols_df, unemployment_df, by = c("year","month"))
+
+```
+
+
+
+### Step 5: Analyse Results
+Write a short paragraph about these datasets. 
+Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
+
+
+I DONT WANT TO LOL
+
+
+
+#### Additional Information & Side Notes:
+Note: we could have used a date variable as a key instead of creating year and month keys; doing so would help with some kinds of plotting, and be a more accurate representation of the data. Date formats are tricky, though. For more information check out the lubridate package in the tidyverse.
+
+-------------------------------------------------------------------------
+
+## Problem 2
+This problem uses the Mr. Trash Wheel dataset, available as an Excel file on the course website.
+
+### Read and clean the `Mr. Trash Wheel sheet`:
+specify the sheet in the Excel file and to omit non-data entries (rows with notes / figures; columns containing notes) using arguments in read_excel
+use reasonable variable names
+omit rows that do not include dumpster-specific data
+round the number of sports balls to the nearest integer and converts the result to an integer variable (using as.integer)
+
+```{r}
+#omit first row
+#second row is header
+#row 654 is blank and 655 is total of column values
+#Homes column includes 0s and blanks
+
+
+```
+
+
+
+
+### Import, Clean, and Merge 
+Use a similar process to import, clean, and organize the data for Professor Trash Wheel and Gwynnda, and combine this with the Mr. Trash Wheel dataset to produce a single tidy dataset. To keep track of which Trash Wheel is which, you may need to add an additional variable to both datasets before combining.
+
+
+
+
+### Discuss Findings
+Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in the resulting dataset, and give examples of key variables. For available data, what was the total weight of trash collected by Professor Trash Wheel? What was the total number of cigarette butts collected by Gwynnda in June of 2022?
+
+
+
 
