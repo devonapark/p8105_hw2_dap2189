@@ -82,7 +82,7 @@ snp_df =
 ```
 
 
-### Step 2: Tidy `unemployment.csv`
+### Step 3: Tidy `unemployment.csv`
 Tidy the unemployment data so that it can be merged with the previous datasets. 
 Switch it from “wide” to “long” format --> ensure key variables have the same name and that key variables take the same values.
 
@@ -149,7 +149,7 @@ Note: we could have used a date variable as a key instead of creating year and m
 ## Problem 2
 This problem uses the Mr. Trash Wheel dataset, available as an Excel file on the course website.
 
-### Read and clean the `Mr. Trash Wheel sheet`:
+### Step 1: Read and clean the `Mr. Trash Wheel sheet`:
 specify the sheet in the Excel file and to omit non-data entries (rows with notes / figures; columns containing notes) using arguments in read_excel
 use reasonable variable names
 omit rows that do not include dumpster-specific data
@@ -162,19 +162,100 @@ round the number of sports balls to the nearest integer and converts the result 
 #Homes column includes 0s and blanks
 
 
+mr_trash_df <-
+  read_excel("Trashwheel_Collection_Data.xlsx",  sheet = "Mr. Trash Wheel", skip = 1) |> 
+  janitor::clean_names() |> 
+  select(-starts_with("x"), -homes_powered) |> 
+  filter(!is.na(dumpster)) |> 
+  mutate(sports_balls = as.integer(round(sports_balls)),
+         sheet = "mr_trash",
+         year = as.double(year))
+
+
+
+
+#filter(!is.na(dumpster)) removes the last two rows which includes a blank row and the summary total row
 ```
 
 
 
 
-### Import, Clean, and Merge 
+### Step 2: Import, Clean, and Merge 
 Use a similar process to import, clean, and organize the data for Professor Trash Wheel and Gwynnda, and combine this with the Mr. Trash Wheel dataset to produce a single tidy dataset. To keep track of which Trash Wheel is which, you may need to add an additional variable to both datasets before combining.
 
+```{r}
+
+prof_trash_df <-
+  read_excel("Trashwheel_Collection_Data.xlsx",  sheet = "Professor Trash Wheel", skip = 1) |> 
+  janitor::clean_names() |> 
+  select(-homes_powered) |> 
+  filter(!is.na(dumpster)) |> 
+  mutate(sheet = "prof_trash")
 
 
+gwyn_trash_df <-
+  read_excel("Trashwheel_Collection_Data.xlsx",  sheet = "Gwynnda Trash Wheel", skip = 1) |> 
+  janitor::clean_names() |> 
+  select(-homes_powered) |> 
+  filter(!is.na(dumpster)) |> 
+  mutate(sheet = "gwyn_trash")
 
-### Discuss Findings
+
+#Combine all three datasets 
+
+all_trash_df = 
+  bind_rows(mr_trash_df, prof_trash_df, gwyn_trash_df)
+
+```
+
+
+### Step 3: Discuss Findings
 Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in the resulting dataset, and give examples of key variables. For available data, what was the total weight of trash collected by Professor Trash Wheel? What was the total number of cigarette butts collected by Gwynnda in June of 2022?
+
+
+
+-----------------------------------------------------------------------------
+
+## Problem 3
+
+Home and rental prices have generally increased over the last decade. Zillow, a popular website used to search for homes for sale or rent, is uniquely positioned to provide insights into trends in the real estate market. In response to broad interest, the company releases data for research. In this project, we’ll look at the Zillow Observed Rent Index (ZORI) in New York City between January 2015 and August 2024.
+
+NYC is divided into five boroughs. Each of these boroughs is it’s own county, and in some cases the borough name and county name differ; for example, Manhattan is New York County. Moreover, boroughs are divided into neighborhoods. Rental price data provided by Zillow does not include information neighborhoods within boroughs, but can be accessed separately.
+
+### Step 1: Create a single dataset
+Create a single, well-organized dataset with all the information contained in these data files. 
+To that end: import, clean, tidy, and otherwise wrangle each of these datasets; 
+check for completeness and correctness across datasets (e.g. by viewing individual datasets and monitoring warning messages); merge to create a single, final dataset; 
+and organize this so that variables and observations are in meaningful orders.
+
+
+
+
+
+
+### Step 2: Describe Results
+
+Briefly describe the resulting tidy dataset. How many total observations exist? How many unique ZIP codes are included, and how many unique neighborhoods?
+
+
+
+
+
+
+### Step 3: Zipcodes and Graphics
+Which ZIP codes appear in the ZIP code dataset but not in the Zillow Rental Price dataset? Using a few illustrative examples discuss why these ZIP codes might be excluded from the Zillow dataset.
+
+
+
+
+
+### Covid Fluctuations
+
+Rental prices fluctuated dramatically during the COVID-19 pandemic. For all available ZIP codes, compare rental prices in January 2021 to prices in January 2020. Make a table that shows the 10 ZIP codes (along with the borough and neighborhood) with largest drop in price from January 2020 to 2021. Comment.
+
+
+
+
 
 
 
