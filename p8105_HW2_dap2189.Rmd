@@ -229,6 +229,27 @@ check for completeness and correctness across datasets (e.g. by viewing individu
 and organize this so that variables and observations are in meaningful orders.
 
 
+```{r}
+zipcodes_df =
+  read_csv("zillow_data/Zip Codes.csv") |> 
+  janitor::clean_names() |> 
+  mutate(county = paste0(county, " County"))
+
+
+nyc_zori_df = 
+  read_csv("zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv") |> 
+   pivot_longer(
+    cols = starts_with("20"),
+    names_to = "date",
+    values_to = "zori") |> 
+    janitor::clean_names() |> 
+    rename(zip_code = region_name) |> 
+    select(-state_name, -region_type)
+
+
+
+#mutate(county = paste0(county, " County")) --> paste0 adds " County" to the end of each value in [County]
+```
 
 
 
