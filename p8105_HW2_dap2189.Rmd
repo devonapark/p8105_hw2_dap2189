@@ -4,56 +4,36 @@ output: github_document
 date: "2025-09-24"
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-# HW 2
-## R Markdown
-### Subtitle 
-#### Tester
-##### Tester 3
-###### Tester 4
-Random Text
+##### Author: Devon Park
+##### UNI: DAP2189
 
-```{r}
+```{r, include = FALSE}
 library(tidyverse)
 library(readxl)
 library(haven)
 ```
 
 ## Problem 1
-Data to be used: `pols-month.csv`, `unemployment.csv`, and `snp.csv`. 
+Data to be used: `pols-month.csv`, `unemployment.csv`, and `snp.csv` from the FiveThirtyEight data. 
 Goal: Merge these into a single data frame using year and month as keys across datasets.
 
-### Step 0: Import and View Data:
-Import each of the datasets and view what we're working with. 
+
+### Step 1: Import and Clean `pols-month.csv`
+ - Import and view data
+ - Break up `mon` into integer variables year, month, and day
+ - Replace month number with month name 
+ - Create a president variable
+ - Remove variables: `prez_dem`, `prez_gop`, `day`
+
 ```{r}
+#Import and view data
 pols_month_df =
   read_csv("fivethirtyeight_datasets/pols-month.csv") |> 
   janitor::clean_names() 
 
-#When imported everything is already dbl meaning it is a double numeric variable (aka we don't need to include a line like --> na = c("NA", ".", "") that converts missing values)
-
-snp_df =
-  read_csv("fivethirtyeight_datasets/snp.csv") |> 
-  janitor::clean_names() 
-
-
-unemployment_df =
-  read_csv("fivethirtyeight_datasets/unemployment.csv") |> 
-  janitor::clean_names() 
-```
-
-
-### Step 1: Clean `pols-month.csv`
-Use separate() to break up the variable mon into integer variables year, month, and day; 
-Replace month number with month name; 
-Create a president variable taking values gop and dem,
-Remove prez_dem and prez_gop; and remove the day variable.
-
-```{r}
+#Create pols dataframe
 pols_month_df =  
- separate(pols_month_df, mon, c("year","month","day"),"-", convert = TRUE) |> 
+ separate(pols_month_df, mon, c("year","month","day"),"-", convert = TRUE) |>     
   mutate(
     month = month.name[month],
     president = case_when(
@@ -62,39 +42,74 @@ pols_month_df =
     )) |> 
   select(-prez_dem, -prez_gop, -day)
 
- #Found this shortcut online. Instead of mutate(month = month.name[month]), you could also use mutate(month = case_when(month == 1 ~ "January",....
+
+#When imported, everything is already <dbl> meaning it is a double numeric variable. (aka we don't need to include a line like --> na = c("NA", ".", "") that converts missing values)
+
+#separate() --> break up [mon] into three variables: year, month, day
+#year was already integer. Would need to use add the argument << year  = as.integer(year), >> to force the change
+
+#Instead of mutate(month = month.name[month]), you could also use mutate(month = case_when(month == 1 ~ "January",....
+
+#case_when only works here because prez_De and prez_gop values are mutually exclusive. Could alternatively have done prez_dem == 1 ~ "dem", and prez_dem == 1 ~ "gop"
+
+#select() removes the three columns I no longer want in my dataframe
+
 ```
 
-### Step 2: Clean `snp.csv`
-Use a similar process to the above. 
-For consistency across datasets, arrange according to year and month, 
-Organize so that year and month are the leading columns.
+
+### Step 2: View and Clean `snp.csv`
+ - Import and view data
+ - Use a similar process as done with `pols-month.csv`. 
+ - Break up `date` into integer variables year, month, and day
+ - Replace month number with month name 
+ - For consistency across datasets, arrange according to year and month,
+ - Organize so that year and month are the leading columns
 
 ```{r}
-snp_df =  
- separate(snp_df, date, c("month","day","year"),"/", convert = TRUE) |> 
+#Version 1: Slimmer 
+snp_df =
+  read_csv("fivethirtyeight_datasets/snp.csv") |> 
+  janitor::clean_names() |> 
+  separate(date, c("month","day","year"),"/", convert = TRUE) |> 
   mutate(
-    month = month.name[month],
-    year = if_else(year <= 15, year + 2000, year + 1900)) |> 
+    year = if_else(year <= 15, year + 2000L, year + 1900L),
+    month = factor(month.name[month], levels = month.name, ordered = TRUE)) |> 
   select(-day) |> 
-  relocate(year)
+  relocate(year) |> 
+  arrange(year, month)
+
+#factor()--> column = month (but converted to month name), 
+    #levels = month.name --> fixes the level order to month.name 
+        #If i didn't specify levels =, then it would automatically be alphabetical (not by calendar month)
+    #ordered = TRUE --> makes it a ordinal factor (aka, January > Febraury > March ....)
+    #I could have done month = month.name[month] and then in factor(), data = month, but this seems bulkier
+
+#put L next to 2000 and 1900 to make it an integer
+
+#relocate() --> move year to the front of the dataframe
+
+#arrange() sorts rows by year then by month (both in ascending order)
 
 ```
 
 
 ### Step 3: Tidy `unemployment.csv`
-Tidy the unemployment data so that it can be merged with the previous datasets. 
-Switch it from “wide” to “long” format --> ensure key variables have the same name and that key variables take the same values.
-
+ - Tidy the unemployment data so that it can be merged with the previous datasets
+ - switching from “wide” to “long” format
+ - Ensure that key variables have the same name and that key variables take the same values
 
 ```{r}
-unemployment_df <-
-unemployment_df |>   
+
+#Import, view, pivot, and manipulate data
+unemployment_df =
+  read_csv("fivethirtyeight_datasets/unemployment.csv") |> 
+  janitor::clean_names()|>   
   pivot_longer( 
     cols = jan:dec,
     names_to = "month",
     values_to = "unemployment_rate") |> 
-  mutate(month = tolower(month),
+  mutate(year  = as.integer(year),
+        month = tolower(month),
         month = case_when( 
                             month == "jan" ~ "January",
                             month == "feb" ~ "February",
@@ -109,36 +124,36 @@ unemployment_df |>
                             month == "nov" ~ "November",
                             month == "dec" ~ "December"))
 
- 
-
 ```
 
 
-
 ### Step 4: Join Data Sets
-Merge `snp.csv` INTO `pols-month.csv`,
-Merge `unemployment.csv` into above result.
+ - Merge `snp.csv` INTO `pols-month.csv`,
+ - Merge `unemployment.csv` into above result.
 
 ```{r}
 
 snps_pols_df = 
   left_join(pols_month_df, snp_df, by = c("year","month"))
+#left join: pols_month_df is the base df into which snp_df is merged. Output: new df called "snps_pols_df"
 
 
+#Merged Dataframe of all three datasets
 unemployment_snps_pols_df = 
   left_join(snps_pols_df, unemployment_df, by = c("year","month"))
 
 ```
 
 
-
 ### Step 5: Analyse Results
-Write a short paragraph about these datasets. 
-Explain briefly what each dataset contained, and describe the resulting dataset (e.g. give the dimension, range of years, and names of key variables).
 
+`pols_month_df` had the dimensions `r nrow(pols_month_df)` (observations) x `r ncol(pols_month_df)` (columns / variables). And it contained the following variables: `r paste(colnames(pols_month_df), collapse = ", ")`.
 
-I DONT WANT TO LOL
+`snp_df` had the dimensions `r nrow(snp_df)` (observations) x `r ncol(snp_df)` (columns / variables). And it contained the following variables: `r paste(colnames(snp_df), collapse = ", ")`.
 
+`unemployment_df` had the dimensions `r nrow(unemployment_df)` (observations) x `r ncol(unemployment_df)` (columns / variables). And it contained the following variables: `r paste(colnames(unemployment_df), collapse = ", ")`.
+
+`unemployment_snps_pols_df` is the merged data set, containing all three of the above datasets. It has the dimensions `r nrow(unemployment_snps_pols_df)` (observations) x `r ncol(unemployment_snps_pols_df)` (columns / variables). The earliest year in the dataset is `r min(unemployment_snps_pols_df$year, na.rm = TRUE)` and the most recent year is `r max(unemployment_snps_pols_df$year, na.rm = TRUE)`. However, the earliest year with unemployment data is: `r min(unemployment_snps_pols_df$year[!is.na(unemployment_snps_pols_df$unemployment_rate)])`.
 
 
 #### Additional Information & Side Notes:
@@ -149,21 +164,16 @@ Note: we could have used a date variable as a key instead of creating year and m
 ## Problem 2
 This problem uses the Mr. Trash Wheel dataset, available as an Excel file on the course website.
 
+
 ### Step 1: Read and clean the `Mr. Trash Wheel sheet`:
-specify the sheet in the Excel file and to omit non-data entries (rows with notes / figures; columns containing notes) using arguments in read_excel
-use reasonable variable names
-omit rows that do not include dumpster-specific data
-round the number of sports balls to the nearest integer and converts the result to an integer variable (using as.integer)
+ - Remove non-data entries and rows that do not include dumpster-specific data)
+ - Use reasonable variable names
+ - Round the number of sports balls to the nearest integer and converts the result to an integer variable
 
 ```{r}
-#omit first row
-#second row is header
-#row 654 is blank and 655 is total of column values
-#Homes column includes 0s and blanks
 
-
-mr_trash_df <-
-  read_excel("Trashwheel_Collection_Data.xlsx",  sheet = "Mr. Trash Wheel", skip = 1) |> 
+mr_trash_df =
+  read_excel("Trashwheel_Collection_Data_2025.xlsx",  sheet = "Mr. Trash Wheel", skip = 1) |> 
   janitor::clean_names() |> 
   select(-starts_with("x"), -homes_powered) |> 
   filter(!is.na(dumpster)) |> 
@@ -171,38 +181,38 @@ mr_trash_df <-
          sheet = "mr_trash",
          year = as.double(year))
 
-
-
-
+#skip first row in excel import (has an image)
+#select(-starts_with"x") removes the two columns that R adds when importing excel data that has comments --> removes new columns ('...15' and '...16')
+#removes homes_powered column because it is not dumpster specific data
 #filter(!is.na(dumpster)) removes the last two rows which includes a blank row and the summary total row
+#if i just used as.integer w/o round() it would just trunkate sports_balls (7.9 -> 7) rather than round (7.9 -> 8)
+#create a column called sheet to prep when I merge datasets
+#change variable type of year from <char> to <dbl> to match type of other two datasets (for when merging occurs)
 ```
 
 
-
-
 ### Step 2: Import, Clean, and Merge 
-Use a similar process to import, clean, and organize the data for Professor Trash Wheel and Gwynnda, and combine this with the Mr. Trash Wheel dataset to produce a single tidy dataset. To keep track of which Trash Wheel is which, you may need to add an additional variable to both datasets before combining.
+ - Use a similar process to import, clean, and organize the data for two additional sheets: Professor Trash Wheel and Gwynns Falls Trash Wheel  
+ - Combine all three to produce a single tidy dataset. 
 
 ```{r}
-
-prof_trash_df <-
-  read_excel("Trashwheel_Collection_Data.xlsx",  sheet = "Professor Trash Wheel", skip = 1) |> 
+#Create df using "Professor Trash Wheel sheet (use similar methods to mr_trash_df)
+prof_trash_df =
+  read_excel("Trashwheel_Collection_Data_2025.xlsx",  sheet = "Professor Trash Wheel", skip = 1) |> 
   janitor::clean_names() |> 
   select(-homes_powered) |> 
   filter(!is.na(dumpster)) |> 
   mutate(sheet = "prof_trash")
 
-
-gwyn_trash_df <-
-  read_excel("Trashwheel_Collection_Data.xlsx",  sheet = "Gwynnda Trash Wheel", skip = 1) |> 
+#Create df using "Gwynns Falls Trash Wheel" sheet (use similar methods to mr_trash_df)
+gwyn_trash_df =
+  read_excel("Trashwheel_Collection_Data_2025.xlsx",  sheet = "Gwynns Falls Trash Wheel", skip = 1) |> 
   janitor::clean_names() |> 
   select(-homes_powered) |> 
   filter(!is.na(dumpster)) |> 
   mutate(sheet = "gwyn_trash")
 
-
 #Combine all three datasets 
-
 all_trash_df = 
   bind_rows(mr_trash_df, prof_trash_df, gwyn_trash_df)
 
@@ -210,31 +220,57 @@ all_trash_df =
 
 
 ### Step 3: Discuss Findings
-Write a paragraph about these data; you are encouraged to use inline R. Be sure to note the number of observations in the resulting dataset, and give examples of key variables. For available data, what was the total weight of trash collected by Professor Trash Wheel? What was the total number of cigarette butts collected by Gwynnda in June of 2022?
+
+```{r , include=FALSE}
+#include = FALSE so that when I knit, this chunk nor the output shows up 
+#na.rm mean NA remove. When true, drop the NAs and compute using the remaining values.
+
+total_weight_prof = 
+  all_trash_df |> 
+  filter(sheet == "prof_trash") |> 
+  summarise(total = sum(weight_tons, na.rm = TRUE)) |> 
+  pull(total)
+
+total_gwynnda_jun_2022 = 
+  all_trash_df |> 
+  filter(year == 2022,
+         sheet == "gwyn_trash",
+         month == "June") |> 
+  summarise(total = sum(cigarette_butts, na.rm = TRUE)) |> 
+  pull(total)
 
 
+#pull converts tibble (1x1) into a vector
+#in inline code: use scales::comma to format the output 
+
+#Possible way of doing it in inline but you need to reference the dplyr package when used at each step --> all_trash_df |> dplyr::filter(sheet == "prof_trash") |> dplyr::summarise(total = sum(weight_tons, na.rm = TRUE)) |> dplyr::pull(total)
+```
+
+These data come from three different datasets: `gwyn_trash_df`,`prof_trash_df`, `mr_trash_df`. Combined into one dataset called `all_trash_df`, which has `r nrow(all_trash_df)` observations and `r ncol(all_trash_df)` columns with the following variables: `r paste(colnames(all_trash_df), collapse = ", ")`.
+
+
+The total weight of trash collected by Professor Trash Wheel is ``r total_weight_prof`` tons based on this dataset.
+The Gwynns Fall Trash collector, formerly know as Gwynnda, collected a total of ``r scales::comma(total_gwynnda_jun_2022)`` cigarette butts in June, 2022.
 
 -----------------------------------------------------------------------------
 
 ## Problem 3
-
-Home and rental prices have generally increased over the last decade. Zillow, a popular website used to search for homes for sale or rent, is uniquely positioned to provide insights into trends in the real estate market. In response to broad interest, the company releases data for research. In this project, we’ll look at the Zillow Observed Rent Index (ZORI) in New York City between January 2015 and August 2024.
+In this question, we look at the Zillow Observed Rent Index (ZORI) in New York City between January 2015 and August 2024.
 
 NYC is divided into five boroughs. Each of these boroughs is it’s own county, and in some cases the borough name and county name differ; for example, Manhattan is New York County. Moreover, boroughs are divided into neighborhoods. Rental price data provided by Zillow does not include information neighborhoods within boroughs, but can be accessed separately.
 
 ### Step 1: Create a single dataset
-Create a single, well-organized dataset with all the information contained in these data files. 
-To that end: import, clean, tidy, and otherwise wrangle each of these datasets; 
-check for completeness and correctness across datasets (e.g. by viewing individual datasets and monitoring warning messages); merge to create a single, final dataset; 
-and organize this so that variables and observations are in meaningful orders.
-
+ - Create a single, well-organized dataset with all the information contained in these data files.
 
 ```{r}
+
+#Import, clean, tidy, and otherwise wrangle each of these datasets
 zipcodes_df =
   read_csv("zillow_data/Zip Codes.csv") |> 
   janitor::clean_names() |> 
   mutate(county = paste0(county, " County"))
 
+#mutate(county = paste0(county, " County")) --> paste0 adds "County" to the end of each value in [County]
 
 nyc_zori_df = 
   read_csv("zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv") |> 
@@ -243,36 +279,159 @@ nyc_zori_df =
     names_to = "date",
     values_to = "zori") |> 
     janitor::clean_names() |> 
-    rename(zip_code = region_name) |> 
+    rename(zip_code = region_name,
+           county_zori = county_name) |> 
     select(-state_name, -region_type)
 
 
+#Merge datasets
+zip_nyc_zori_merged_df = 
+  left_join(nyc_zori_df, zipcodes_df, by = "zip_code", relationship = "many-to-many") |> 
+  relocate(zip_code)
 
-#mutate(county = paste0(county, " County")) --> paste0 adds " County" to the end of each value in [County]
+#####STILL NEED TO -->>>>>> and organize this so that variables and observations are in meaningful orders.
+
+```
+
+```{r, echo = FALSE}
+#why is county not the same 
+
+#why are the values here not the same 
+counties_zip_nyc_zori_merged_df =
+  zip_nyc_zori_merged_df |> 
+  filter(county != county_zori)
+
+#checking if we had any duplciates
+any(duplicated(zipcodes_df$zip_code))
+zipcodes_df |> 
+  filter(duplicated(zip_code) | duplicated(zip_code, fromLast = TRUE))
 ```
 
 
-
-
 ### Step 2: Describe Results
+ - Briefly describe the resulting tidy dataset (merged of zipcodes and zori data)
+ 
+```{r, include = FALSE}
+#Find unique zipcodes 
+distinct_zipcodes_zori_df =
+  zip_nyc_zori_merged_df |> 
+  distinct(zip_code)|> 
+  filter(!is.na(zip_code))
 
-Briefly describe the resulting tidy dataset. How many total observations exist? How many unique ZIP codes are included, and how many unique neighborhoods?
+#Find unique zipcodes 
+distinct_neighborhoods_zori_df =
+  zip_nyc_zori_merged_df |> 
+  distinct(neighborhood)|> 
+  filter(!is.na(neighborhood)) |> 
+  arrange(neighborhood)
 
+```
 
-
-
-
+In `zip_nyc_zori_merged_df` there are `r nrow(zip_nyc_zori_merged_df)` total observations. Within this merged dataframe, there are `r nrow(distinct_zipcodes_zori_df)` unique zipcodes and `r nrow(distinct_neighborhoods_zori_df)` unique neighborhoods. 
+ 
 
 ### Step 3: Zipcodes and Graphics
-Which ZIP codes appear in the ZIP code dataset but not in the Zillow Rental Price dataset? Using a few illustrative examples discuss why these ZIP codes might be excluded from the Zillow dataset.
+ - Which ZIP codes appear in the ZIP code dataset but not in the Zillow Rental Price dataset? Using a few illustrative examples discuss why these ZIP codes might be excluded from the Zillow dataset.
+
+```{r}
+#Find ZIP codes in zipcodes_df but NOT in nyc_zori_df
+zip_only_df = 
+  anti_join(zipcodes_df, nyc_zori_df, by = "zip_code")
+
+
+#Find unique neighborhoods 
+distinct_neighborhoods_df =
+  zip_only_df |> 
+  distinct(neighborhood)|> 
+  filter(!is.na(neighborhood)) |> 
+  arrange(neighborhood)
+
+
+#calculate how any observations have NA in the neighborhood column 
+na_neighborhoods_df =
+  zip_only_df |> 
+  filter(is.na(neighborhood))
+
+
+#Find 10 randomly generated zip codes from the non-zillow df to research what type of zipcodes are not being included:
+set.seed(32)  # for reproducibility, optional
+sampled_zipcodes =
+  sample_n(zip_only_df, 10)
+
+```
+
+`zip_only_df` includes zip codes that do not appear in `nyc_zori_df`, but instead only appear in dataframe `zipcodes_df`. This represents zipcodes that Zillow is not tracking. There are `r nrow(zip_only_df)` zip codes in this dataset. Additionally, there are `r nrow(distinct_neighborhoods_df)` unique neighborhoods in this dataset. However, it should be noted that there are `r nrow(na_neighborhoods_df)` observations in the dataset with `NA` as the value in the neighborhood column. 
+ 
+ 
+I randomly created a list of 10 zipcodes from my dataframe, `zip_only_df`. After researching these, as well as a few others, the zip codes that are not in the zillow dataset seem to be mostly for non-residential areas in NY (near JFK, Moynihan Station, Citi Field, Wall St). For zip codes in this data set (not being tracked by zillow) that are for possible residential areas, they seem to have limited residential property listings on Zillow. Additionally some of zipcodes are for po boxes. 
 
 
 
-
-
-### Covid Fluctuations
+### Step 4: Covid Fluctuations
 
 Rental prices fluctuated dramatically during the COVID-19 pandemic. For all available ZIP codes, compare rental prices in January 2021 to prices in January 2020. Make a table that shows the 10 ZIP codes (along with the borough and neighborhood) with largest drop in price from January 2020 to 2021. Comment.
+
+
+```{r}
+#Filter for January 2020 and January 2021
+jan_prices =
+  zip_nyc_zori_merged_df |> 
+  filter(date %in% c("2020-01-31", "2021-01-31")) |> 
+  select(zip_code, county, neighborhood, date, zori)
+
+
+#Reshape table to Wide Format
+jan_prices_wide = 
+  jan_prices |> 
+  pivot_wider(
+    names_from = date,
+    values_from = zori,
+    names_prefix = "zori_") |> 
+  janitor::clean_names()
+
+
+#Compute Price Change and Arrange by Largest Drop
+#I could do this in one step, but for illustrative purposes, I made it two.
+jan_prices_wide = 
+  jan_prices_wide |> 
+  mutate(
+    price_drop = round(zori_2021_01_31 - zori_2020_01_31, 2)) |>
+  arrange(price_drop)  
+
+
+#Select Top 10 ZIP Codes with Largest Drop
+top10_drop = 
+  jan_prices_wide |> 
+  head(n = 10) |> 
+  select(zip_code, county, neighborhood, zori_2021_01_31, zori_2020_01_31, price_drop) |> 
+  relocate(zip_code,price_drop) |> 
+  mutate(zori_2021_01_31 = round(zori_2021_01_31, 2),
+         zori_2020_01_31 = round(zori_2020_01_31, 2)) |> 
+  rename("price_2020" = "zori_2020_01_31",
+         "price_2021" = "zori_2021_01_31")
+
+
+#Greatest price drop (reduces df to 1 row)
+biggest_drop = 
+  top10_drop |> 
+  slice_min(price_drop, with_ties = TRUE)
+
+#Use filter(date >= "2020-01-31", date <= "2021-01-31") if you want the range of dates between these rather than two specific dates
+#arrange(price_drop) -->  Most negative (largest drop) at the top
+#shorter way --> mutate(across(c(zori_2021_01_31, zori_2020_01_31), ~ round(.x, 2)))
+#slice_min() --> returns the rows with the smallest values (aka the greatest price drop)
+#with_ties = TRUE --> (true is the default value) If multiple rows share the cutoff value, return all of them
+```
+
+Rental prices fluctuated dramatically during the COVID-19 pandemic. For all available ZIP codes, compare rental prices in January 2021 to prices in January 2020. Make a table that shows the 10 ZIP codes (along with the borough and neighborhood) with largest drop in price from January 2020 to 2021. Comment.
+
+There are `r dplyr::n_distinct(top10_drop$county)` counties represented and `r dplyr::n_distinct(top10_drop$neighborhood, na.rm = TRUE)` distinct neighborhoods with `r sum(is.na(top10_drop$neighborhood))` neighborhood value of `NA`. 
+
+The mean price drop across the top ten largest price drops is `r round(mean(top10_drop$price_drop, na.rm = TRUE), 2)` dollars between 2020 and 2021 (with the median price drop for this same dataset and time frame being $ `r round(stats::median(top10_drop$price_drop, na.rm = TRUE), 2)` USD)
+
+The zip code with the greatest price drop is ``r format(biggest_drop$zip_code, scientific = FALSE)``, and the neighborhood with the greatest price drip is `r biggest_drop$neighborhood` with a price drop value of $ ``r scales::number(biggest_drop$price_drop, accuracy = 0.01)``.
+
+
 
 
 
