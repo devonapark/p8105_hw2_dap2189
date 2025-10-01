@@ -15,10 +15,11 @@ library(haven)
 
 ## Problem 1
 Data to be used: `pols-month.csv`, `unemployment.csv`, and `snp.csv` from the FiveThirtyEight data. 
+
 Goal: Merge these into a single data frame using year and month as keys across datasets.
 
 
-### Step 1: Import and Clean `pols-month.csv`
+### 1.1: Import and Clean `pols-month.csv`
  - Import and view data
  - Break up `mon` into integer variables year, month, and day
  - Replace month number with month name 
@@ -56,8 +57,7 @@ pols_month_df =
 
 ```
 
-
-### Step 2: View and Clean `snp.csv`
+### 1.2: View and Clean `snp.csv`
  - Import and view data
  - Use a similar process as done with `pols-month.csv`. 
  - Break up `date` into integer variables year, month, and day
@@ -78,6 +78,7 @@ snp_df =
   relocate(year) |> 
   arrange(year, month)
 
+
 #factor()--> column = month (but converted to month name), 
     #levels = month.name --> fixes the level order to month.name 
         #If i didn't specify levels =, then it would automatically be alphabetical (not by calendar month)
@@ -92,8 +93,7 @@ snp_df =
 
 ```
 
-
-### Step 3: Tidy `unemployment.csv`
+### 1.3: Tidy `unemployment.csv`
  - Tidy the unemployment data so that it can be merged with the previous datasets
  - switching from “wide” to “long” format
  - Ensure that key variables have the same name and that key variables take the same values
@@ -126,13 +126,11 @@ unemployment_df =
 
 ```
 
-
-### Step 4: Join Data Sets
+### 1.4: Join Data Sets
  - Merge `snp.csv` INTO `pols-month.csv`,
  - Merge `unemployment.csv` into above result.
 
 ```{r}
-
 snps_pols_df = 
   left_join(pols_month_df, snp_df, by = c("year","month"))
 #left join: pols_month_df is the base df into which snp_df is merged. Output: new df called "snps_pols_df"
@@ -145,14 +143,31 @@ unemployment_snps_pols_df =
 ```
 
 
-### Step 5: Analyse Results
+### 1.5: Analyse Results
 
+#### Clean Table outputs
+##### `pols_month_df`
+```{r, echo=FALSE}
+knitr::kable(head(pols_month_df,5))
+```
 `pols_month_df` had the dimensions `r nrow(pols_month_df)` (observations) x `r ncol(pols_month_df)` (columns / variables). And it contained the following variables: `r paste(colnames(pols_month_df), collapse = ", ")`.
 
+##### `snp_df`
+```{r, echo=FALSE}
+knitr::kable(head(snp_df,5))
+```
 `snp_df` had the dimensions `r nrow(snp_df)` (observations) x `r ncol(snp_df)` (columns / variables). And it contained the following variables: `r paste(colnames(snp_df), collapse = ", ")`.
 
+##### `unemployment_df`
+```{r, echo=FALSE}
+knitr::kable(head(unemployment_df,5)) #make it print nice when I knit and print out only the first 5 rows
+```
 `unemployment_df` had the dimensions `r nrow(unemployment_df)` (observations) x `r ncol(unemployment_df)` (columns / variables). And it contained the following variables: `r paste(colnames(unemployment_df), collapse = ", ")`.
 
+##### The complete merged dataframe: `unemployment_snps_pols_df`
+```{r, echo=FALSE}
+knitr::kable(head(unemployment_snps_pols_df,5))
+```
 `unemployment_snps_pols_df` is the merged data set, containing all three of the above datasets. It has the dimensions `r nrow(unemployment_snps_pols_df)` (observations) x `r ncol(unemployment_snps_pols_df)` (columns / variables). The earliest year in the dataset is `r min(unemployment_snps_pols_df$year, na.rm = TRUE)` and the most recent year is `r max(unemployment_snps_pols_df$year, na.rm = TRUE)`. However, the earliest year with unemployment data is: `r min(unemployment_snps_pols_df$year[!is.na(unemployment_snps_pols_df$unemployment_rate)])`.
 
 
@@ -165,7 +180,7 @@ Note: we could have used a date variable as a key instead of creating year and m
 This problem uses the Mr. Trash Wheel dataset, available as an Excel file on the course website.
 
 
-### Step 1: Read and clean the `Mr. Trash Wheel sheet`:
+### 2.1: Read and clean the `Mr. Trash Wheel sheet`:
  - Remove non-data entries and rows that do not include dumpster-specific data)
  - Use reasonable variable names
  - Round the number of sports balls to the nearest integer and converts the result to an integer variable
@@ -191,7 +206,7 @@ mr_trash_df =
 ```
 
 
-### Step 2: Import, Clean, and Merge 
+### 2.2: Import, Clean, and Merge 
  - Use a similar process to import, clean, and organize the data for two additional sheets: Professor Trash Wheel and Gwynns Falls Trash Wheel  
  - Combine all three to produce a single tidy dataset. 
 
@@ -219,7 +234,7 @@ all_trash_df =
 ```
 
 
-### Step 3: Discuss Findings
+### 2.3: Discuss Findings
 
 ```{r , include=FALSE}
 #include = FALSE so that when I knit, this chunk nor the output shows up 
@@ -246,10 +261,14 @@ total_gwynnda_jun_2022 =
 #Possible way of doing it in inline but you need to reference the dplyr package when used at each step --> all_trash_df |> dplyr::filter(sheet == "prof_trash") |> dplyr::summarise(total = sum(weight_tons, na.rm = TRUE)) |> dplyr::pull(total)
 ```
 
+##### Merged data: `all_trash_df`
+```{r, echo=FALSE}
+knitr::kable(head(all_trash_df,5))
+```
 These data come from three different datasets: `gwyn_trash_df`,`prof_trash_df`, `mr_trash_df`. Combined into one dataset called `all_trash_df`, which has `r nrow(all_trash_df)` observations and `r ncol(all_trash_df)` columns with the following variables: `r paste(colnames(all_trash_df), collapse = ", ")`.
 
-
 The total weight of trash collected by Professor Trash Wheel is ``r total_weight_prof`` tons based on this dataset.
+
 The Gwynns Fall Trash collector, formerly know as Gwynnda, collected a total of ``r scales::comma(total_gwynnda_jun_2022)`` cigarette butts in June, 2022.
 
 -----------------------------------------------------------------------------
@@ -259,7 +278,7 @@ In this question, we look at the Zillow Observed Rent Index (ZORI) in New York C
 
 NYC is divided into five boroughs. Each of these boroughs is it’s own county, and in some cases the borough name and county name differ; for example, Manhattan is New York County. Moreover, boroughs are divided into neighborhoods. Rental price data provided by Zillow does not include information neighborhoods within boroughs, but can be accessed separately.
 
-### Step 1: Create a single dataset
+### 3.1: Create a single dataset
  - Create a single, well-organized dataset with all the information contained in these data files.
 
 ```{r}
@@ -268,7 +287,8 @@ NYC is divided into five boroughs. Each of these boroughs is it’s own county, 
 zipcodes_df =
   read_csv("zillow_data/Zip Codes.csv") |> 
   janitor::clean_names() |> 
-  mutate(county = paste0(county, " County"))
+  mutate(county = paste0(county, " County")) |> 
+  relocate(county, zip_code)
 
 #mutate(county = paste0(county, " County")) --> paste0 adds "County" to the end of each value in [County]
 
@@ -281,34 +301,56 @@ nyc_zori_df =
     janitor::clean_names() |> 
     rename(zip_code = region_name,
            county_zori = county_name) |> 
-    select(-state_name, -region_type)
+    select(-state_name, -region_type) |> 
+    relocate(county_zori,zip_code,zori, size_rank) 
+
+
 
 
 #Merge datasets
 zip_nyc_zori_merged_df = 
   left_join(nyc_zori_df, zipcodes_df, by = "zip_code", relationship = "many-to-many") |> 
-  relocate(zip_code)
+  relocate(zip_code,county, county_zori)
 
-#####STILL NEED TO -->>>>>> and organize this so that variables and observations are in meaningful orders.
 
 ```
 
-```{r, echo = FALSE}
-#why is county not the same 
+```{r}
+#Exploring why when I merge the dataframes, I get two unique county columns  
 
-#why are the values here not the same 
-counties_zip_nyc_zori_merged_df =
+#see what values are in my county column in each df --> verifying that I am working with the same possible entries in county
+counties_zip =
+  zipcodes_df |>  distinct(county)
+
+counties_zori =
+  nyc_zori_df |>  distinct(county_zori)
+
+
+#Check if there are any rows where in the merged dataset, value of [county] does not equal value in [county_zori]
+counties_unmatched_in_merged_df =
   zip_nyc_zori_merged_df |> 
   filter(county != county_zori)
+#output here is 348 observations meaning that 348 rows have non-matching county information
 
-#checking if we had any duplciates
+
+
+#Checking if we had any duplicates -->4 values with duplicates --> aka 2 distinct
 any(duplicated(zipcodes_df$zip_code))
 zipcodes_df |> 
   filter(duplicated(zip_code) | duplicated(zip_code, fromLast = TRUE))
 ```
 
+Note: After merging `nyc_zori_df` and `zipcodes_df` I would ahve expected the number of observations in my new merged data set, `zip_nyc_zori_merged_df`, to equal the number of observations in `nyc_zori_df`, `r nrow(nyc_zori_df)` because of how I joined them. However, the number of obervations in the merged dataset is greater than expected: `r nrow(zip_nyc_zori_merged_df)`. To understand why this is the case, I looked at how the county variable is interacting (because it did not merge these columns which is what was expected if they were all the same values).* After comparing county values in both datasets, I found that there are `r nrow(counties_unmatched_in_merged_df)` observations where the county from the original zori dataset does not match up with the county from the zipcodes dataset. 
 
-### Step 2: Describe Results
+##### `counties_unmatched_in_merged_df`
+```{r, echo=FALSE}
+knitr::kable(head(counties_unmatched_in_merged_df,5))
+```
+
+*Note: I later changed the names of the county columns to identify which county column is coming from which dataset. `county_zori` is the county column from `nyc_zori_df` and `county` is the column from `zipcodes_df`. Otherwise, R automatically differentiates them by saying `county.x` and `county.y`, but when R does this, I dont know which one comes from which dataframe. 
+
+
+### 3.2: Describe Results
  - Briefly describe the resulting tidy dataset (merged of zipcodes and zori data)
  
 ```{r, include = FALSE}
@@ -327,10 +369,15 @@ distinct_neighborhoods_zori_df =
 
 ```
 
-In `zip_nyc_zori_merged_df` there are `r nrow(zip_nyc_zori_merged_df)` total observations. Within this merged dataframe, there are `r nrow(distinct_zipcodes_zori_df)` unique zipcodes and `r nrow(distinct_neighborhoods_zori_df)` unique neighborhoods. 
- 
+##### Merged Dataset: `zip_nyc_zori_merged_df`
+```{r, echo=FALSE}
+knitr::kable(head(zip_nyc_zori_merged_df,5))
+```
 
-### Step 3: Zipcodes and Graphics
+In `zip_nyc_zori_merged_df` there are `r nrow(zip_nyc_zori_merged_df)` total observations. Within this merged dataframe, there are `r nrow(distinct_zipcodes_zori_df)` unique zipcodes and `r nrow(distinct_neighborhoods_zori_df)` unique neighborhoods. 
+
+
+### 3.3: Zipcodes and Graphics
  - Which ZIP codes appear in the ZIP code dataset but not in the Zillow Rental Price dataset? Using a few illustrative examples discuss why these ZIP codes might be excluded from the Zillow dataset.
 
 ```{r}
@@ -367,7 +414,7 @@ I randomly created a list of 10 zipcodes from my dataframe, `zip_only_df`. After
 
 
 
-### Step 4: Covid Fluctuations
+### 3.4: Covid Fluctuations
 
 Rental prices fluctuated dramatically during the COVID-19 pandemic. For all available ZIP codes, compare rental prices in January 2021 to prices in January 2020. Make a table that shows the 10 ZIP codes (along with the borough and neighborhood) with largest drop in price from January 2020 to 2021. Comment.
 
@@ -422,6 +469,12 @@ biggest_drop =
 #slice_min() --> returns the rows with the smallest values (aka the greatest price drop)
 #with_ties = TRUE --> (true is the default value) If multiple rows share the cutoff value, return all of them
 ```
+
+##### Zipocdes with Greatest Price Drop between 2020 and 2021: `top10_drop`
+```{r, echo=FALSE}
+knitr::kable(head(top10_drop,10))
+```
+
 
 Rental prices fluctuated dramatically during the COVID-19 pandemic. For all available ZIP codes, compare rental prices in January 2021 to prices in January 2020. Make a table that shows the 10 ZIP codes (along with the borough and neighborhood) with largest drop in price from January 2020 to 2021. Comment.
 
