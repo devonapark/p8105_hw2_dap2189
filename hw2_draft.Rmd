@@ -4,6 +4,8 @@ output: github_document
 date: "2025-09-24"
 ---
 
+This draft includes questions I have on problem 3 (where I kept running into duplicate counties)
+
 ##### Author: Devon Park
 ##### UNI: DAP2189
 
@@ -285,7 +287,7 @@ NYC is divided into five boroughs. Each of these boroughs is it’s own county, 
 
 #Import, clean, tidy, and otherwise wrangle each of these datasets
 zipcodes_df =
-  read_csv("zillow_data/Zip Codes.csv") |> 
+  read_csv("zillow_data/Zip Codes.csv", na = c("NA", ".", "")) |> 
   janitor::clean_names() |> 
   mutate(county = paste0(county, " County")) |> 
   relocate(county, zip_code)
@@ -293,38 +295,61 @@ zipcodes_df =
 #mutate(county = paste0(county, " County")) --> paste0 adds "County" to the end of each value in [County]
 
 nyc_zori_df = 
-  read_csv("zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv") |> 
+  read_csv("zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv", na = c("NA", ".", "")) |> 
    pivot_longer(
     cols = starts_with("20"),
     names_to = "date",
     values_to = "zori") |> 
     janitor::clean_names() |> 
     rename(zip_code = region_name,
-           county = county_name) |> 
+           county_zori = county_name) |> 
     select(-state_name, -region_type) |> 
-    relocate(county,zip_code,zori, size_rank) 
+    relocate(county_zori,zip_code,zori, size_rank) 
 
+
+#Merge datasets
+zip_nyc_zori_merged_df = 
+  left_join(nyc_zori_df, zipcodes_df, by = c("zip_code"),relationship =
+  "many-to-many") |> 
+  relocate(zip_code,county, county_zori)
+
+```
+
+
+```{r}
+#Exploring why when I merge the dataframes, I get two unique county columns  
 
 #see what values are in my county column in each df --> verifying that I am working with the same possible entries in county
 counties_zip =
   zipcodes_df |>  distinct(county)
 
 counties_zori =
-  nyc_zori_df |>  distinct(county)
+  nyc_zori_df |>  distinct(county_zori)
 
 
-#Merge datasets
-zip_nyc_zori_merged_df = 
-  left_join(nyc_zori_df, zipcodes_df, by = c("zip_code","county")) |> 
-  relocate(zip_code,county)
+#Check if there are any rows where in the merged dataset, value of [county] does not equal value in [county_zori]
+counties_unmatched_in_merged_df =
+  zip_nyc_zori_merged_df |> 
+  filter(county != county_zori)
+#output here is 348 observations meaning that 348 rows have non-matching county information
 
+
+
+#Checking if we had any duplicates -->4 values with duplicates --> aka 2 distinct
+any(duplicated(zipcodes_df$zip_code))
+zipcodes_df |> 
+  filter(duplicated(zip_code) | duplicated(zip_code, fromLast = TRUE))
 ```
 
-##### Merged Dataset: `zip_nyc_zori_merged_df`
+Note: After merging `nyc_zori_df` and `zipcodes_df` I would ahve expected the number of observations in my new merged data set, `zip_nyc_zori_merged_df`, to equal the number of observations in `nyc_zori_df`, `r nrow(nyc_zori_df)` because of how I joined them. However, the number of obervations in the merged dataset is greater than expected: `r nrow(zip_nyc_zori_merged_df)`. To understand why this is the case, I looked at how the county variable is interacting (because it did not merge these columns which is what was expected if they were all the same values).* After comparing county values in both datasets, I found that there are `r nrow(counties_unmatched_in_merged_df)` observations where the county from the original zori dataset does not match up with the county from the zipcodes dataset. 
+
+##### `counties_unmatched_in_merged_df`
 ```{r, echo=FALSE}
-knitr::kable(head(zip_nyc_zori_merged_df,5))
+knitr::kable(head(counties_unmatched_in_merged_df,5))
 ```
-*Note: zori is not available for all zipcodes which is why some values may appear as `NA`. See full table to view zori scores. 
+
+*Note: I later changed the names of the county columns to identify which county column is coming from which dataset. `county_zori` is the county column from `nyc_zori_df` and `county` is the column from `zipcodes_df`. Otherwise, R automatically differentiates them by saying `county.x` and `county.y`, but when R does this, I dont know which one comes from which dataframe. 
+
 
 ### 3.2: Describe Results
  - Briefly describe the resulting tidy dataset (merged of zipcodes and zori data)
@@ -336,7 +361,7 @@ distinct_zipcodes_zori_df =
   distinct(zip_code)|> 
   filter(!is.na(zip_code))
 
-#Find unique neighborhoods from unique zipcode list 
+#Find unique zipcodes 
 distinct_neighborhoods_zori_df =
   zip_nyc_zori_merged_df |> 
   distinct(neighborhood)|> 
@@ -345,10 +370,15 @@ distinct_neighborhoods_zori_df =
 
 ```
 
+##### Merged Dataset: `zip_nyc_zori_merged_df`
+```{r, echo=FALSE}
+knitr::kable(head(zip_nyc_zori_merged_df,5))
+```
+
 In `zip_nyc_zori_merged_df` there are `r nrow(zip_nyc_zori_merged_df)` total observations. Within this merged dataframe, there are `r nrow(distinct_zipcodes_zori_df)` unique zipcodes and `r nrow(distinct_neighborhoods_zori_df)` unique neighborhoods. 
 
 
-### 3.3: Zipcodes in Zillow
+### 3.3: Zipcodes and Graphics
  - Which ZIP codes appear in the ZIP code dataset but not in the Zillow Rental Price dataset? Using a few illustrative examples discuss why these ZIP codes might be excluded from the Zillow dataset.
 
 ```{r}
@@ -385,7 +415,7 @@ I randomly created a list of 10 zipcodes from my dataframe, `zip_only_df`. After
 
 
 
-### 3.4: Rent Fluctuations and Covid
+### 3.4: Covid Fluctuations
 
 Rental prices fluctuated dramatically during the COVID-19 pandemic. For all available ZIP codes, compare rental prices in January 2021 to prices in January 2020. Make a table that shows the 10 ZIP codes (along with the borough and neighborhood) with largest drop in price from January 2020 to 2021. Comment.
 
@@ -454,13 +484,6 @@ There are `r dplyr::n_distinct(top10_drop$county)` counties represented and `r d
 The mean price drop across the top ten largest price drops is `r round(mean(top10_drop$price_drop, na.rm = TRUE), 2)` dollars between 2020 and 2021 (with the median price drop for this same dataset and time frame being $ `r round(stats::median(top10_drop$price_drop, na.rm = TRUE), 2)` USD)
 
 The zip code with the greatest price drop is ``r format(biggest_drop$zip_code, scientific = FALSE)``, and the neighborhood with the greatest price drip is `r biggest_drop$neighborhood` with a price drop value of $ ``r scales::number(biggest_drop$price_drop, accuracy = 0.01)``.
-
-
-
-
-
-
-
 
 
 

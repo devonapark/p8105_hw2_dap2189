@@ -2,6 +2,9 @@ HW2 - P8105
 ================
 2025-09-24
 
+This draft includes questions I have on problem 3 (where I kept running
+into duplicate counties)
+
 ##### Author: Devon Park
 
 ##### UNI: DAP2189
@@ -354,7 +357,7 @@ separately.
 ``` r
 #Import, clean, tidy, and otherwise wrangle each of these datasets
 zipcodes_df =
-  read_csv("zillow_data/Zip Codes.csv") |> 
+  read_csv("zillow_data/Zip Codes.csv", na = c("NA", ".", "")) |> 
   janitor::clean_names() |> 
   mutate(county = paste0(county, " County")) |> 
   relocate(county, zip_code)
@@ -373,16 +376,16 @@ zipcodes_df =
 #mutate(county = paste0(county, " County")) --> paste0 adds "County" to the end of each value in [County]
 
 nyc_zori_df = 
-  read_csv("zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv") |> 
+  read_csv("zillow_data/Zip_zori_uc_sfrcondomfr_sm_month_NYC.csv", na = c("NA", ".", "")) |> 
    pivot_longer(
     cols = starts_with("20"),
     names_to = "date",
     values_to = "zori") |> 
     janitor::clean_names() |> 
     rename(zip_code = region_name,
-           county = county_name) |> 
+           county_zori = county_name) |> 
     select(-state_name, -region_type) |> 
-    relocate(county,zip_code,zori, size_rank) 
+    relocate(county_zori,zip_code,zori, size_rank) 
 ```
 
     ## Rows: 149 Columns: 125
@@ -395,43 +398,100 @@ nyc_zori_df =
     ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
 
 ``` r
+#Merge datasets
+zip_nyc_zori_merged_df = 
+  left_join(nyc_zori_df, zipcodes_df, by = c("zip_code"),relationship =
+  "many-to-many") |> 
+  relocate(zip_code,county, county_zori)
+```
+
+``` r
+#Exploring why when I merge the dataframes, I get two unique county columns  
+
 #see what values are in my county column in each df --> verifying that I am working with the same possible entries in county
 counties_zip =
   zipcodes_df |>  distinct(county)
 
 counties_zori =
-  nyc_zori_df |>  distinct(county)
+  nyc_zori_df |>  distinct(county_zori)
 
 
-#Merge datasets
-zip_nyc_zori_merged_df = 
-  left_join(nyc_zori_df, zipcodes_df, by = c("zip_code","county")) |> 
-  relocate(zip_code,county)
+#Check if there are any rows where in the merged dataset, value of [county] does not equal value in [county_zori]
+counties_unmatched_in_merged_df =
+  zip_nyc_zori_merged_df |> 
+  filter(county != county_zori)
+#output here is 348 observations meaning that 348 rows have non-matching county information
+
+
+
+#Checking if we had any duplicates -->4 values with duplicates --> aka 2 distinct
+any(duplicated(zipcodes_df$zip_code))
 ```
 
-##### Merged Dataset: `zip_nyc_zori_merged_df`
+    ## [1] TRUE
 
-| zip_code | county | zori | size_rank | region_id | state | city | metro | date | state_fips | county_code | county_fips | file_date | neighborhood |
-|---:|:---|---:|---:|---:|:---|:---|:---|:---|---:|:---|---:|:---|:---|
-| 11368 | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-01-31 | 36 | 081 | 36081 | 7/25/07 | West Queens |
-| 11368 | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-02-28 | 36 | 081 | 36081 | 7/25/07 | West Queens |
-| 11368 | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-03-31 | 36 | 081 | 36081 | 7/25/07 | West Queens |
-| 11368 | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-04-30 | 36 | 081 | 36081 | 7/25/07 | West Queens |
-| 11368 | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-05-31 | 36 | 081 | 36081 | 7/25/07 | West Queens |
+``` r
+zipcodes_df |> 
+  filter(duplicated(zip_code) | duplicated(zip_code, fromLast = TRUE))
+```
 
-\*Note: zori is not available for all zipcodes which is why some values
-may appear as `NA`. See full table to view zori scores.
+    ## # A tibble: 4 × 7
+    ##   county      zip_code state_fips county_code county_fips file_date neighborhood
+    ##   <chr>          <dbl>      <dbl> <chr>             <dbl> <chr>     <chr>       
+    ## 1 Bronx Coun…    10463         36 005               36005 7/25/07   Kingsbridge…
+    ## 2 Kings Coun…    11201         36 047               36047 7/25/07   Northwest B…
+    ## 3 New York C…    10463         36 061               36061 7/25/07   Kingsbridge…
+    ## 4 New York C…    11201         36 061               36061 7/25/07   Northwest B…
+
+Note: After merging `nyc_zori_df` and `zipcodes_df` I would ahve
+expected the number of observations in my new merged data set,
+`zip_nyc_zori_merged_df`, to equal the number of observations in
+`nyc_zori_df`, 17284 because of how I joined them. However, the number
+of obervations in the merged dataset is greater than expected: 17516. To
+understand why this is the case, I looked at how the county variable is
+interacting (because it did not merge these columns which is what was
+expected if they were all the same values).\* After comparing county
+values in both datasets, I found that there are 348 observations where
+the county from the original zori dataset does not match up with the
+county from the zipcodes dataset.
+
+##### `counties_unmatched_in_merged_df`
+
+| zip_code | county | county_zori | zori | size_rank | region_id | state | city | metro | date | state_fips | county_code | county_fips | file_date | neighborhood |
+|---:|:---|:---|---:|---:|---:|:---|:---|:---|:---|---:|:---|---:|:---|:---|
+| 10463 | New York County | Bronx County | NA | 183 | 61803 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-01-31 | 36 | 061 | 36061 | 7/25/07 | Kingsbridge and Riverdale |
+| 10463 | New York County | Bronx County | NA | 183 | 61803 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-02-28 | 36 | 061 | 36061 | 7/25/07 | Kingsbridge and Riverdale |
+| 10463 | New York County | Bronx County | NA | 183 | 61803 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-03-31 | 36 | 061 | 36061 | 7/25/07 | Kingsbridge and Riverdale |
+| 10463 | New York County | Bronx County | NA | 183 | 61803 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-04-30 | 36 | 061 | 36061 | 7/25/07 | Kingsbridge and Riverdale |
+| 10463 | New York County | Bronx County | 1832.289 | 183 | 61803 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-05-31 | 36 | 061 | 36061 | 7/25/07 | Kingsbridge and Riverdale |
+
+\*Note: I later changed the names of the county columns to identify
+which county column is coming from which dataset. `county_zori` is the
+county column from `nyc_zori_df` and `county` is the column from
+`zipcodes_df`. Otherwise, R automatically differentiates them by saying
+`county.x` and `county.y`, but when R does this, I dont know which one
+comes from which dataframe.
 
 ### 3.2: Describe Results
 
 - Briefly describe the resulting tidy dataset (merged of zipcodes and
   zori data)
 
-In `zip_nyc_zori_merged_df` there are 17284 total observations. Within
+##### Merged Dataset: `zip_nyc_zori_merged_df`
+
+| zip_code | county | county_zori | zori | size_rank | region_id | state | city | metro | date | state_fips | county_code | county_fips | file_date | neighborhood |
+|---:|:---|:---|---:|---:|---:|:---|:---|:---|:---|---:|:---|---:|:---|:---|
+| 11368 | Queens County | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-01-31 | 36 | 081 | 36081 | 7/25/07 | West Queens |
+| 11368 | Queens County | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-02-28 | 36 | 081 | 36081 | 7/25/07 | West Queens |
+| 11368 | Queens County | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-03-31 | 36 | 081 | 36081 | 7/25/07 | West Queens |
+| 11368 | Queens County | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-04-30 | 36 | 081 | 36081 | 7/25/07 | West Queens |
+| 11368 | Queens County | Queens County | NA | 4 | 62080 | NY | New York | New York-Newark-Jersey City, NY-NJ-PA | 2015-05-31 | 36 | 081 | 36081 | 7/25/07 | West Queens |
+
+In `zip_nyc_zori_merged_df` there are 17516 total observations. Within
 this merged dataframe, there are 149 unique zipcodes and 42 unique
 neighborhoods.
 
-### 3.3: Zipcodes in Zillow
+### 3.3: Zipcodes and Graphics
 
 - Which ZIP codes appear in the ZIP code dataset but not in the Zillow
   Rental Price dataset? Using a few illustrative examples discuss why
@@ -479,7 +539,7 @@ that are for possible residential areas, they seem to have limited
 residential property listings on Zillow. Additionally some of zipcodes
 are for po boxes.
 
-### 3.4: Rent Fluctuations and Covid
+### 3.4: Covid Fluctuations
 
 Rental prices fluctuated dramatically during the COVID-19 pandemic. For
 all available ZIP codes, compare rental prices in January 2021 to prices
